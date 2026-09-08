@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yatra — India Travel Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --saffron: #FF6B00;
+      --saffron-light: #FF8C00;
+      --green: #138808;
+      --navy: #000080;
+      --bg: #faf8f5;
+      --surface: #ffffff;
+      --border: #e8e2d9;
+      --text: #1a1a1a;
+      --muted: #6b6560;
+      --user-bubble: #FF6B00;
+      --bot-bubble: #ffffff;
+      --shadow: 0 2px 16px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, var(--saffron) 0%, #e05a00 50%, var(--green) 100%);
+      color: white;
+      padding: 0 20px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .header-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.20);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.35);
+    }
+    .header-text h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .header-text p {
+      font-size: 0.78rem;
+      opacity: 0.88;
+      margin-top: 1px;
+    }
+    .header-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      opacity: 0.9;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── QUICK CHIPS ── */
+    .chips-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .chips-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      white-space: nowrap;
+      background: #fff7f0;
+      border: 1.5px solid #ffd0a8;
+      color: var(--saffron);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+    .chip:hover {
+      background: var(--saffron);
+      color: white;
+      border-color: var(--saffron);
+      transform: translateY(-1px);
+    }
+
+    /* ── CHAT CONTAINER ── */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+    .chat-container::-webkit-scrollbar { width: 5px; }
+    .chat-container::-webkit-scrollbar-track { background: transparent; }
+    .chat-container::-webkit-scrollbar-thumb { background: #d6cfc7; border-radius: 999px; }
+
+    /* Welcome card */
+    .welcome-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .welcome-card .big-icon {
+      font-size: 3rem;
+      margin-bottom: 10px;
+    }
+    .welcome-card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--saffron);
+      margin-bottom: 6px;
+    }
+    .welcome-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .welcome-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .welcome-tip {
+      background: #faf6ff;
+      border: 1px solid #e8dff7;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.80rem;
+      color: #5a4a72;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .welcome-tip:hover { background: #f0e8ff; }
+    .welcome-tip strong { display: block; font-size: 0.85rem; color: #3d2d5a; margin-bottom: 2px; }
+
+    /* ── MESSAGE BUBBLES ── */
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .avatar.bot { background: linear-gradient(135deg, var(--saffron), var(--green)); color: white; }
+    .avatar.user { background: #e0e0e0; color: #444; }
+
+    .bubble {
+      max-width: 75%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 0.91rem;
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .bubble.bot {
+      background: var(--bot-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      color: var(--text);
+    }
+    .bubble.user {
+      background: var(--user-bubble);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Markdown-style formatting */
+    .bubble.bot strong { font-weight: 700; color: #1a1a1a; }
+    .bubble.bot em { font-style: italic; }
+    .bubble.bot ul, .bubble.bot ol {
+      padding-left: 18px;
+      margin: 6px 0;
+    }
+    .bubble.bot li { margin-bottom: 4px; }
+    .bubble.bot h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 10px 0 4px;
+      color: var(--saffron);
+    }
+    .bubble.bot p { margin-bottom: 6px; }
+    .bubble.bot p:last-child { margin-bottom: 0; }
+
+    .msg-time {
+      font-size: 0.70rem;
+      color: var(--muted);
+      margin-top: 3px;
+      padding: 0 4px;
+    }
+    .msg-col { display: flex; flex-direction: column; }
+    .msg-row.user .msg-col { align-items: flex-end; }
+
+    /* Typing indicator */
+    .typing-bubble {
+      background: var(--bot-bubble);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 14px 18px;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .typing-dot {
+      width: 7px; height: 7px;
+      background: #c0b8b0;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+
+    /* ── INPUT BAR ── */
+    .input-bar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+    .input-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .input-wrap {
+      flex: 1;
+      background: #f5f1ec;
+      border: 1.5px solid var(--border);
+      border-radius: 24px;
+      display: flex;
+      align-items: flex-end;
+      padding: 8px 14px;
+      transition: border-color 0.2s;
+    }
+    .input-wrap:focus-within {
+      border-color: var(--saffron);
+      background: white;
+    }
+    textarea {
+      flex: 1;
+      border: none;
+      background: transparent;
+      resize: none;
+      font-size: 0.92rem;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      max-height: 120px;
+      min-height: 22px;
+      line-height: 1.5;
+    }
+    textarea::placeholder { color: #b0a89e; }
+
+    .send-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--saffron);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .send-btn:hover { background: var(--saffron-light); transform: scale(1.05); }
+    .send-btn:disabled { background: #d0c8c0; cursor: not-allowed; transform: none; }
+    .send-btn svg { fill: white; }
+
+    .input-hint {
+      text-align: center;
+      font-size: 0.70rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── DESTINATION CARDS ── */
+    .dest-cards {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .dest-card {
+      background: linear-gradient(135deg, #fff7f0, #fff0e5);
+      border: 1px solid #ffd0a8;
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--saffron);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .dest-card:hover { background: var(--saffron); color: white; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .bubble { max-width: 88%; }
+      .welcome-grid { grid-template-columns: 1fr; }
+      .header-text p { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-icon">✈️</div>
+  <div class="header-text">
+    <h1>Yatra — India Travel Agent</h1>
+    <p>Powered by IBM Granite AI &nbsp;|&nbsp; Your personal guide across India</p>
+  </div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span>Online</span>
+  </div>
+</header>
+
+<!-- QUICK CHIPS -->
+<div class="chips-bar" id="chips">
+  <div class="chip" onclick="sendChip(this)">🏔️ Himalayan Trek</div>
+  <div class="chip" onclick="sendChip(this)">🏖️ Goa Beaches</div>
+  <div class="chip" onclick="sendChip(this)">🕌 Rajasthan Heritage</div>
+  <div class="chip" onclick="sendChip(this)">🌿 Kerala Backwaters</div>
+  <div class="chip" onclick="sendChip(this)">🐯 Wildlife Safari</div>
+  <div class="chip" onclick="sendChip(this)">🏛️ Golden Triangle</div>
+  <div class="chip" onclick="sendChip(this)">🌺 Northeast India</div>
+  <div class="chip" onclick="sendChip(this)">💰 Budget Travel</div>
+  <div class="chip" onclick="sendChip(this)">🍛 Food Tours</div>
+</div>
+
+<!-- CHAT -->
+<div class="chat-container" id="chat">
+  <!-- Welcome card -->
+  <div class="welcome-card" id="welcomeCard">
+    <div class="big-icon">🇮🇳</div>
+    <h2>Namaste! I'm Yatra</h2>
+    <p>Your AI-powered travel companion for exploring the incredible diversity of India.<br>Tell me where you'd like to go, or ask anything about travelling in India!</p>
+    <div class="welcome-grid">
+      <div class="welcome-tip" onclick="sendTip(this)">
+        <strong>🗺️ Plan an Itinerary</strong>
+        "Plan a 7-day trip to Rajasthan for two people"
+      </div>
+      <div class="welcome-tip" onclick="sendTip(this)">
+        <strong>🌤️ Best Season</strong>
+        "When is the best time to visit Kerala?"
+      </div>
+      <div class="welcome-tip" onclick="sendTip(this)">
+        <strong>💵 Budget Tips</strong>
+        "How can I travel India on a low budget?"
+      </div>
+      <div class="welcome-tip" onclick="sendTip(this)">
+        <strong>🚆 Transport</strong>
+        "What are the best ways to travel between cities?"
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT BAR -->
+<div class="input-bar">
+  <div class="input-inner">
+    <div class="input-wrap">
+      <textarea
+        id="msgInput"
+        placeholder="Ask me anything about travelling in India..."
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+    </div>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div class="input-hint">Press Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
+</div>
+
+<script>
+  // ── State ──
+  const history = [];
+  let isLoading = false;
+
+  // ── Helpers ──
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function scrollToBottom() {
+    const chat = document.getElementById('chat');
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function hideWelcome() {
+    const wc = document.getElementById('welcomeCard');
+    if (wc) wc.remove();
+  }
+
+  // ── Render a message bubble ──
+  function renderMessage(text, role) {
+    const chat = document.getElementById('chat');
+    const row = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'bot' ? '✈️' : '🧳';
+
+    const col = document.createElement('div');
+    col.className = 'msg-col';
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role}`;
+
+    if (role === 'bot') {
+      bubble.innerHTML = formatMarkdown(text);
+    } else {
+      bubble.textContent = text;
+    }
+
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = now();
+
+    col.appendChild(bubble);
+    col.appendChild(time);
+    row.appendChild(avatar);
+    row.appendChild(col);
+    chat.appendChild(row);
+    scrollToBottom();
+    return bubble;
+  }
+
+  // ── Typing indicator ──
+  function showTyping() {
+    const chat = document.getElementById('chat');
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.id = 'typingRow';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar bot';
+    avatar.textContent = '✈️';
+
+    const tb = document.createElement('div');
+    tb.className = 'typing-bubble';
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement('div');
+      d.className = 'typing-dot';
+      tb.appendChild(d);
+    }
+
+    row.appendChild(avatar);
+    row.appendChild(tb);
+    chat.appendChild(row);
+    scrollToBottom();
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('typingRow');
+    if (el) el.remove();
+  }
+
+  // ── Simple markdown formatter ──
+  function formatMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Headings
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // Italic
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Bullet lists
+      .replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      // Numbered lists
+      .replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>')
+      // Line breaks → paragraphs
+      .split('\n\n').map(p => {
+        if (p.startsWith('<h3>') || p.startsWith('<ul>') || p.startsWith('<li>')) return p;
+        return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+      }).join('');
+  }
+
+  // ── Send chip ──
+  function sendChip(el) {
+    const text = el.textContent.replace(/^[^\w]+/, '').trim();
+    document.getElementById('msgInput').value = `Tell me about ${text} travel options in India`;
+    sendMessage();
+  }
+
+  // ── Send welcome tip ──
+  function sendTip(el) {
+    const quote = el.querySelector('p') || el;
+    const raw = el.textContent;
+    const match = raw.match(/"(.+?)"/);
+    if (match) {
+      document.getElementById('msgInput').value = match[1];
+      sendMessage();
+    }
+  }
+
+  // ── Main send ──
+  async function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const btn = document.getElementById('sendBtn');
+    const message = input.value.trim();
+    if (!message || isLoading) return;
+
+    hideWelcome();
+    isLoading = true;
+    btn.disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+
+    renderMessage(message, 'user');
+    showTyping();
+
+    try {
+      const res = await fetch('/api/travel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, history }),
+      });
+
+      const data = await res.json();
+      hideTyping();
+
+      if (!res.ok || data.error) {
+        renderMessage(data.error || 'Something went wrong. Please try again.', 'bot');
+      } else {
+        const reply = data.reply || "I'm sorry, I couldn't generate a response. Please try again.";
+        renderMessage(reply, 'bot');
+        history.push({ user: message, assistant: reply });
+        // Keep history manageable
+        if (history.length > 20) history.shift();
+      }
+    } catch (err) {
+      hideTyping();
+      renderMessage('Network error. Please check your connection and try again.', 'bot');
+    }
+
+    isLoading = false;
+    btn.disabled = false;
+    input.focus();
+  }
+
+  // Focus input on load
+  window.addEventListener('load', () => {
+    document.getElementById('msgInput').focus();
+  });
+</script>
+</body>
+</html>
