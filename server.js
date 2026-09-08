@@ -1,15 +1,25 @@
+require('dotenv').config();
+
 const config = require('./config');
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
 
+// ── Startup credential check ─────────────────────────────────────────────────
+const missingKeys = ['IBM_API_KEY', 'IBM_PROJECT_ID'].filter(k => !config[k]);
+if (missingKeys.length) {
+  console.error('[STARTUP ERROR] Missing required environment variables:', missingKeys.join(', '));
+  console.error('  Create a .env file (see .env.example) or set them in your deployment environment.');
+  process.exit(1);
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// IBM IAM Token cache
+// ── IBM IAM Token cache ───────────────────────────────────────────────────────
 let cachedToken = null;
 let tokenExpiry = 0;
 
@@ -23,21 +33,28 @@ async function getIBMToken() {
       grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
       apikey: config.IBM_API_KEY,
     }),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 15000,
+    }
   );
 
   cachedToken = response.data.access_token;
-  // Expire 5 minutes before actual expiry
+  // Refresh 5 minutes before actual expiry
   tokenExpiry = now + (response.data.expires_in - 300) * 1000;
   return cachedToken;
 }
 
-// POST /api/travel — main AI endpoint
+// ── POST /api/travel — main AI endpoint ──────────────────────────────────────
 app.post('/api/travel', async (req, res) => {
   const { message, history } = req.body;
 
-  if (!message || typeof message !== 'string') {
-    return res.status(400).json({ error: 'message is required' });
+  if (!message || typeof message !== 'string' || message.trim() === '') {
+    return res.status(400).json({ error: 'Please enter a travel question.' });
+  }
+
+  if (message.length > 4000) {
+    return res.status(400).json({ error: 'Message is too long. Please shorten your question.' });
   }
 
   try {
@@ -45,41 +62,42 @@ app.post('/api/travel', async (req, res) => {
 
     // Build conversation context from history
     let conversationContext = '';
-    if (history && Array.isArray(history) && history.length > 0) {
+    if (Array.isArray(history) && history.length > 0) {
       conversationContext = history
-        .slice(-6) // keep last 6 exchanges for context
+        .slice(-6)
         .map(h => `User: ${h.user}\nAssistant: ${h.assistant}`)
         .join('\n\n');
       conversationContext += '\n\n';
     }
 
-    const systemPrompt = `You are Yatra, a reliable India travel planning assistant.
+    const systemPrompt = `You are Yatra, a reliable and friendly India travel planning assistant.
 
 IMPORTANT RULES:
-1. Answer only the user's travel question — nothing more, nothing less.
-2. If the user asks for N days, provide exactly N days (e.g. Day 1, Day 2, Day 3). Never stop early.
-3. Never invent hotels, restaurants, prices, opening hours, transport schedules, or historical facts.
-4. If you are uncertain about a fact, clearly say it should be verified before travel.
-5. Use clear headings, bullet points, and short paragraphs.
-6. Never produce garbled, repetitive, or nonsensical text. Stop cleanly when done.
-7. Do not continue beyond what the user requested.
-8. For itineraries, always use this structure:
-   Day 1: [Title]
-   Day 2: [Title]
-   Day 3: [Title]
-   ... (one section per day, no days skipped)
+1. Answer the user's travel question clearly and completely.
+2. For simple questions (e.g. best time to visit, food, transport), give a concise, well-structured answer — no itinerary required.
+3. If the user asks for N days, provide exactly N days (Day 1, Day 2, ... Day N). Never stop early.
+4. For itineraries, always use this exact structure:
+   **Day 1: [Short title]**
+   - Morning: ...
+   - Afternoon: ...
+   - Evening: ...
+
+   **Day 2: [Short title]**
+   ...and so on for every requested day.
+5. Never invent specific hotel names, restaurant names, exact prices, opening hours, transport schedules, or real-time information.
+6. If you are uncertain about a fact, say "Please verify this before travelling."
+7. Use clear headings (**bold**) and bullet points for readability.
+8. Never produce garbled, repetitive, or incomplete text. End each response cleanly.
 9. Keep recommendations practical and realistic.
-10. Include approximate budget only when useful; label it clearly as an estimate.
-11. Prioritise useful travel information: places to visit, suggested order, transportation, food, approximate time needed, and travel tips.
-12. Do not claim any information is real-time or verified.
-13. Keep the response concise but complete.
-14. Use Indian currency (₹) when discussing budgets for Indian travel.
-15. Do not generate fictional names or details just to make the response longer.
-16. If the question is not about travel in India, politely redirect to India travel planning.`;
+10. Include approximate budget only when useful; clearly label it as an estimate.
+11. Use Indian currency (₹) when discussing costs.
+12. Focus on India travel. If a question is not about India travel, politely redirect.
+13. Maintain context from earlier in the conversation for follow-up questions.
+14. Do not claim any information is real-time or officially verified.`;
 
     const fullPrompt = `${systemPrompt}
 
-${conversationContext}User: ${message}
+${conversationContext}User: ${message.trim()}
 Assistant:`;
 
     const payload = {
@@ -100,24 +118,70 @@ Assistant:`;
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      timeout: 60000,
     });
 
     const generated = response.data?.results?.[0]?.generated_text?.trim() || '';
+
+    if (!generated) {
+      console.warn('[WARN] Granite returned empty generated_text. Full response:', JSON.stringify(response.data));
+      return res.status(500).json({ error: 'The AI returned an empty response. Please try again.' });
+    }
+
     res.json({ reply: generated });
+
   } catch (err) {
-    console.error('IBM API error:', err?.response?.data || err.message);
-    res.status(500).json({
-      error: 'Failed to get response from AI. Please try again.',
-    });
+    // Detailed diagnostic logging — NEVER logs the API key or token
+    const status  = err?.response?.status;
+    const ibmCode = err?.response?.data?.errors?.[0]?.code || err?.response?.data?.error || '';
+    const ibmMsg  = err?.response?.data?.errors?.[0]?.message
+                 || err?.response?.data?.errorMessage
+                 || err?.response?.data?.message
+                 || '';
+
+    if (status === 400 && ibmMsg.includes('disabled')) {
+      console.error(`[ERROR] IBM API key is DISABLED. Renew it in IBM Cloud → Manage → Access → API keys.`);
+      return res.status(503).json({ error: 'The AI service credentials have expired. Please contact the administrator.' });
+    }
+
+    if (status === 401 || status === 403) {
+      // Token expired mid-flight — force refresh next request
+      cachedToken = null;
+      tokenExpiry = 0;
+      console.error(`[ERROR] IBM auth failed (HTTP ${status}). Token cache cleared for retry.`);
+      return res.status(503).json({ error: 'AI authentication failed. Please try again in a moment.' });
+    }
+
+    if (status === 429) {
+      console.warn('[WARN] IBM rate limit hit (HTTP 429).');
+      return res.status(429).json({ error: 'Too many requests. Please wait a moment and try again.' });
+    }
+
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      console.error('[ERROR] IBM API request timed out.');
+      return res.status(504).json({ error: 'The AI took too long to respond. Please try again.' });
+    }
+
+    // Generic fallback — log safely
+    console.error(`[ERROR] IBM API call failed — HTTP ${status || 'N/A'} | code: ${ibmCode} | message: ${ibmMsg} | js: ${err.message}`);
+    res.status(500).json({ error: 'Failed to get a response from the AI. Please try again.' });
   }
 });
 
-// Serve frontend
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', model: config.IBM_MODEL_ID });
+});
+
+// ── Serve frontend ────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const PORT = config.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🌏 India Travel Agent running at http://localhost:${PORT}`);
+// ── Start server ──────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🌏 Yatra — India Travel Agent running on http://0.0.0.0:${PORT}`);
+  console.log(`   Model : ${config.IBM_MODEL_ID}`);
+  console.log(`   Health: http://localhost:${PORT}/health`);
 });

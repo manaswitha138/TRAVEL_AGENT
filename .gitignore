@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment secrets — NEVER commit these
+.env
+
+# Diagnostic/test scripts (not needed in production)
+diagnose.js
+test_prompt.js
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
