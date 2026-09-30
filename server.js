@@ -153,10 +153,15 @@ Assistant:`;
     }
 
     if (status === 429) {
-      console.warn('[WARN] IBM rate limit hit (HTTP 429).');
-      return res.status(429).json({ error: 'Too many requests. Please wait a moment and try again.' });
-    }
+  console.error(
+    '[IBM 429]',
+    JSON.stringify(err?.response?.data || {}, null, 2)
+  );
 
+  return res.status(429).json({
+    error: 'IBM temporarily rejected the request. Please try again shortly.'
+  });
+}
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       console.error('[ERROR] IBM API request timed out.');
       return res.status(504).json({ error: 'The AI took too long to respond. Please try again.' });
